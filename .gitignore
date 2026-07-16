@@ -1,0 +1,39 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# build
+/out/
+/.next/
+/!.next/static/
+/!.next/standalone/
+
+# misc
+.DS_Store
+*.pem
+.env*.local
+
+# debug
+npm-debug*
+yarn-debug*
+yarn-error*
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# database
+/data/trades.db
+/data/trades.db-wal
+/data/trades.db-shm
+
+# temp
+/temp*
+*.log
+server.log

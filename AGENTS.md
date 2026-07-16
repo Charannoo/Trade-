@@ -1,0 +1,1 @@
+AGENTS.md: This is a Next.js 16 (App Router) project. It has real breaking changes vs older versions. Before writing any Next-specific code, read the guides in `node_modules/next/dist/docs/`. Trust those docs over your memory.

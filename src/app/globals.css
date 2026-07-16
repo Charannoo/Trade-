@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #0a0e14;
+  --bg-surface: rgba(255, 255, 255, 0.02);
+  --border: rgba(255, 255, 255, 0.1);
+  --green: #22c55e;
+  --red: #ef4444;
+  --cyan: #38bdf8;
+  --amber: #f59e0b;
+  --yellow: #facc15;
+  --purple: #c084fc;
+}
+
+html {
+  font-size: 18px;
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg-primary);
+  color: #e4e4e7;
+  font-family: "Geist Sans", "Inter", system-ui, -apple-system, sans-serif;
+}
+
+/* Flash animation for live price ticks */
+@keyframes flash-green {
+  0% { background-color: rgba(34, 197, 94, 0.3); }
+  100% { background-color: transparent; }
+}
+@keyframes flash-red {
+  0% { background-color: rgba(239, 68, 68, 0.3); }
+  100% { background-color: transparent; }
+}
+.flash-up { animation: flash-green 0.6s ease-out; }
+.flash-down { animation: flash-red 0.6s ease-out; }
+
+/* Pulse animation for status dots */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.pulse-dot { animation: pulse 2s ease-in-out infinite; }
+
+/* Tabular numbers for figures */
+.tabular-nums { font-variant-numeric: tabular-nums; }
