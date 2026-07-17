@@ -18,6 +18,7 @@ async function main() {
   const { runResearchCycle } = await import("./research-runner");
   const { runBotCycle } = await import("../src/lib/bot/runner");
   const { captureAccountSnapshot } = await import("../src/lib/paper/service");
+  const { startTelegramBot } = await import("../src/lib/telegram/bot");
 
   console.log("=".repeat(60));
   console.log("TradeS Worker Booting...");
@@ -37,6 +38,9 @@ async function main() {
 
   // Start signal computation
   signalRunner.start();
+
+  // Start Telegram bot
+  startTelegramBot();
 
   // === AUTONOMOUS CYCLES ===
 

@@ -12,6 +12,7 @@ dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 const envSchema = z.object({
   DELTA_API_KEY: z.string().default(""),
   DELTA_API_SECRET: z.string().default(""),
+  TELEGRAM_BOT_TOKEN: z.string().default(""),
   SEC_EDGAR_USER_AGENT: z.string().default("TradeS personal project"),
   DATABASE_PATH: z.string().default("./data/trades.db"),
   AUTH_ENABLED: z
@@ -37,6 +38,7 @@ const dataStreamUrl = "wss://socket.india.delta.exchange";
 const tradeStreamUrl = "wss://socket.india.delta.exchange";
 
 const hasDeltaKeys = Boolean(env.DELTA_API_KEY && env.DELTA_API_SECRET);
+const hasTelegramToken = Boolean(env.TELEGRAM_BOT_TOKEN);
 
 /**
  * Export Anthropic API key for child process spawning.
@@ -73,4 +75,5 @@ export {
   dataStreamUrl,
   tradeStreamUrl,
   hasDeltaKeys,
+  hasTelegramToken,
 };
