@@ -185,24 +185,29 @@ async function getProductId(symbol: string): Promise<number | null> {
 export async function getAccount(): Promise<DeltaAccount> {
   try {
     const res = await deltaFetch<{ result: any[] }>("/v2/wallet/balances");
-    const wallet = res.result?.[0] ?? {};
+    // Prefer USD wallet (for crypto perpetuals), fall back to first non-zero wallet
+    let wallet = res.result?.find((w: any) => w.asset_symbol === "USD");
+    if (!wallet) wallet = res.result?.find((w: any) => parseFloat(w.balance) > 0);
+    if (!wallet) wallet = res.result?.[0] ?? {};
+
+    const balance = wallet.balance ?? "0";
+    const currency = wallet.asset_symbol ?? "USD";
 
     return {
       id: "delta-india",
       status: "active",
-      currency: "INR",
-      cash: wallet.balance ?? "0",
-      equity: wallet.balance ?? "0",
-      buying_power: wallet.balance ?? "0",
+      currency,
+      cash: balance,
+      equity: balance,
+      buying_power: balance,
       daytrade_count: 0,
-      portfolio_value: wallet.balance ?? "0",
+      portfolio_value: balance,
     };
   } catch {
-    // Fallback if wallet endpoint fails
     return {
       id: "delta-india",
       status: "active",
-      currency: "INR",
+      currency: "USD",
       cash: "0",
       equity: "0",
       buying_power: "0",
@@ -324,6 +329,7 @@ export async function createOrder(params: {
   order_class?: "bracket" | "oto" | "simple";
   take_profit?: { limit_price: string };
   stop_loss?: { stop_price: string };
+  leverage?: number;
 }): Promise<DeltaOrder> {
   const productId = await getProductId(params.symbol);
   if (!productId) {
@@ -343,12 +349,17 @@ export async function createOrder(params: {
 
   const body: Record<string, any> = {
     product_id: productId,
-    size: params.side === "sell" ? -size : size,
+    side: params.side,
+    size: size,
     order_type: orderType,
   };
 
   if (params.limit_price) {
     body.limit_price = params.limit_price;
+  }
+
+  if (params.leverage) {
+    body.leverage = params.leverage;
   }
 
   // Delta doesn't have bracket orders natively — we'll handle stop-loss/take-profit

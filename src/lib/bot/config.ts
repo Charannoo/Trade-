@@ -19,6 +19,7 @@ export interface BotSettings {
   autoBrackets: boolean;        // Auto-attach stop-loss/take-profit
   stopLossPct: number;          // Default stop-loss %
   takeProfitPct: number;        // Default take-profit %
+  leverage: number;             // Leverage for small balances
 }
 
 const DEFAULT_SETTINGS: BotSettings = {
@@ -32,6 +33,7 @@ const DEFAULT_SETTINGS: BotSettings = {
   autoBrackets: true,
   stopLossPct: 5,
   takeProfitPct: 10,
+  leverage: 1,
 };
 
 /**

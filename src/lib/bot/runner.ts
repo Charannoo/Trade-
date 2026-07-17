@@ -9,6 +9,7 @@ import { eq, desc } from "drizzle-orm";
 import { getBotSettings, isBotEnabled, checkDailyLossLimit } from "./config";
 import { getEnabledRules, evaluateRule, logRuleEvaluation } from "./rules";
 import { placeOrder } from "@/lib/paper/service";
+import { getAccount } from "@/lib/delta/rest";
 
 let startOfDayEquity: number | null = null;
 let lastCheckDay = "";
@@ -55,7 +56,7 @@ export async function runBotCycle(): Promise<{
   );
 
   for (const { symbol } of symbols) {
-    const data = gatherEvaluationData(symbol);
+    const data = await gatherEvaluationData(symbol);
 
     for (const rule of rules) {
       evaluated++;
@@ -82,13 +83,13 @@ export async function runBotCycle(): Promise<{
 /**
  * Gather real data from DB for rule evaluation.
  */
-function gatherEvaluationData(symbol: string): {
+async function gatherEvaluationData(symbol: string): Promise<{
   symbol: string;
   currentPrice?: number;
   indicators?: Record<string, any>;
   prediction?: { outlook: string; confidence: number };
   portfolio?: { positions: number; buyingPower: number; equity: number };
-} {
+}> {
   // Latest price
   const priceRow = getAll<{ price: number }>(
     db.select({ price: latestPrices.price }).from(latestPrices).where(eq(latestPrices.symbol, symbol)).limit(1)
@@ -111,19 +112,25 @@ function gatherEvaluationData(symbol: string): {
   );
   const prediction = predRow[0] ?? undefined;
 
-  // Portfolio summary
+  // Portfolio summary — use real Delta balance
+  let realBuyingPower = 500000;
+  try {
+    const acct = await getAccount();
+    const bal = parseFloat(acct.cash);
+    if (bal > 0) realBuyingPower = bal;
+  } catch {}
+
   const allHoldings = getAll<{ symbol: string; shares: number; costBasis: number }>(
     db.select().from(holdings)
   );
   const totalEquity = allHoldings.reduce((sum, h) => {
-    // Use cost basis as proxy — real equity needs current prices
     return sum + h.shares * h.costBasis;
   }, 0);
 
   const portfolio = {
     positions: allHoldings.length,
-    buyingPower: Math.max(0, 500000 - totalEquity), // Start with 5L capital
-    equity: totalEquity || 500000,
+    buyingPower: realBuyingPower,
+    equity: realBuyingPower,
   };
 
   return {
@@ -141,17 +148,20 @@ function gatherEvaluationData(symbol: string): {
 async function executeAction(
   action: { type: string; side?: string; qtyPct?: number; notional?: number; stopLossPct?: number; takeProfitPct?: number },
   data: { symbol?: string; currentPrice?: number; portfolio?: { buyingPower: number; equity: number } },
-  settings: { maxOrderValue: number; stopLossPct: number; takeProfitPct: number }
+  settings: { maxOrderValue: number; stopLossPct: number; takeProfitPct: number; leverage?: number }
 ): Promise<boolean> {
   if (!data.symbol || !data.currentPrice || !data.portfolio) return false;
 
   let orderValue = 0;
   let qty: string | undefined;
 
+  const leverage = settings.leverage || 1;
+  const leveragedPower = data.portfolio.buyingPower * leverage;
+
   if (action.notional) {
     orderValue = Math.min(action.notional, settings.maxOrderValue);
   } else if (action.qtyPct) {
-    orderValue = (action.qtyPct / 100) * data.portfolio.buyingPower;
+    orderValue = (action.qtyPct / 100) * leveragedPower;
     orderValue = Math.min(orderValue, settings.maxOrderValue);
     qty = String(Math.floor(orderValue / data.currentPrice));
   }
@@ -170,6 +180,10 @@ async function executeAction(
 
     if (qty) orderParams.qty = qty;
     if (action.notional) orderParams.notional = String(orderValue);
+
+    if (settings.leverage && settings.leverage > 1) {
+      orderParams.leverage = settings.leverage;
+    }
 
     if (action.stopLossPct) {
       orderParams.stopLossPrice = String(data.currentPrice * (1 - action.stopLossPct / 100));

@@ -34,6 +34,7 @@ export interface PlaceOrderParams {
   stopPrice?: string;
   takeProfitPrice?: string;
   stopLossPrice?: string;
+  leverage?: number;
   source?: string;
   timeInForce?: string;
 }
@@ -67,6 +68,7 @@ export async function placeOrder(params: PlaceOrderParams): Promise<PlaceOrderRe
   if (params.notional) orderParams.notional = params.notional;
   if (params.limitPrice) orderParams.limit_price = params.limitPrice;
   if (params.stopPrice) orderParams.stop_price = params.stopPrice;
+  if (params.leverage) orderParams.leverage = params.leverage;
 
   // Bracket order support
   if (params.takeProfitPrice || params.stopLossPrice) {

@@ -39,6 +39,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
             <NavLink href="/discoveries">Discoveries</NavLink>
             <NavLink href="/trade">Trade</NavLink>
             <NavLink href="/bot">Bot</NavLink>
+            <NavLink href="/command">Command</NavLink>
             <NavLink href="/strategy">Strategy</NavLink>
             <NavLink href="/howto">How-to</NavLink>
           </div>

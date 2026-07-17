@@ -22,7 +22,7 @@ console.log("Setting up autonomous trading for ₹59 → ₹100...\n");
 // 1. Delta Exchange India perpetuals
 const watchlistSymbols = [
   "BTCUSD", "ETHUSD", "SOLUSD", "DOGEUSD", "XRPUSD",
-];
+]; // Only USD suffix — Delta does NOT use USDT
 
 for (const symbol of watchlistSymbols) {
   sqlite.prepare("INSERT OR IGNORE INTO watchlist (symbol, added_at) VALUES (?, ?)").run(symbol, now);
