@@ -4,12 +4,13 @@
  * Evaluates rules against real data from DB, places orders, enforces safeguards.
  */
 import { db } from "@/lib/db";
-import { botActivity, latestPrices, predictions, quantSignals, holdings, watchlist } from "@/lib/db/schema";
+import { botActivity, latestPrices, predictions, quantSignals, holdings, watchlist, ordersLog } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { getBotSettings, isBotEnabled, checkDailyLossLimit } from "./config";
 import { getEnabledRules, evaluateRule, logRuleEvaluation } from "./rules";
 import { placeOrder } from "@/lib/paper/service";
 import { getAccount } from "@/lib/delta/rest";
+import { notifyTrade, notifyUpdate } from "@/lib/telegram/notifier";
 
 let startOfDayEquity: number | null = null;
 let lastCheckDay = "";
@@ -75,6 +76,27 @@ export async function runBotCycle(): Promise<{
         errors.push(`Rule ${rule.name} on ${symbol}: ${err.message}`);
       }
     }
+  }
+
+  if (orders > 0) {
+    try {
+      const acct = await getAccount();
+      const bal = parseFloat(acct.cash);
+      const allHoldings = getAll<{ symbol: string }>(
+        db.select({ symbol: holdings.symbol }).from(holdings)
+      );
+      const today = new Date().toISOString().split("T")[0];
+      const todayOrders = getAll<{ id: number }>(
+        db.select({ id: ordersLog.id }).from(ordersLog)
+          .where(eq(ordersLog.status, "filled"))
+      );
+      notifyUpdate({
+        balance: bal,
+        startCapital: bal, // approximate — actual start capital tracked by session
+        ordersToday: todayOrders.length,
+        positions: allHoldings.length,
+      });
+    } catch {}
   }
 
   return { evaluated, triggered, orders, halted: false, errors };
@@ -193,6 +215,15 @@ async function executeAction(
     }
 
     await placeOrder(orderParams);
+
+    notifyTrade({
+      symbol: data.symbol,
+      side: side,
+      qty,
+      status: "submitted",
+      reason: `Rule triggered: ${action.type}`,
+    });
+
     return true;
   } catch (err: any) {
     db.insert(botActivity)

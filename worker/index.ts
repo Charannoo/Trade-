@@ -17,6 +17,7 @@ async function main() {
   const { signalRunner } = await import("./signal-runner");
   const { runResearchCycle } = await import("./research-runner");
   const { runBotCycle } = await import("../src/lib/bot/runner");
+  const { runAgentCycle } = await import("../src/lib/agent/agent");
   const { captureAccountSnapshot } = await import("../src/lib/paper/service");
   const { startTelegramBot } = await import("../src/lib/telegram/bot");
 
@@ -67,6 +68,18 @@ async function main() {
       console.error("[bot] Error:", err.message);
     }
   }, 5 * 60 * 1000);
+
+  // AI Agent cycle — every 3 minutes (pattern day trading)
+  setInterval(async () => {
+    try {
+      const result = await runAgentCycle("Auto-trading: maximize profit with 50x leverage on Delta India");
+      if (result.executed && result.decision) {
+        console.log(`[agent] ${result.decision.action} ${result.decision.symbol} — ${result.decision.reason}`);
+      }
+    } catch (err: any) {
+      console.error("[agent] Cycle error:", err.message);
+    }
+  }, 3 * 60 * 1000);
 
   // Account snapshot — every 15 minutes
   setInterval(async () => {
