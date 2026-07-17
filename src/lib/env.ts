@@ -20,6 +20,11 @@ const envSchema = z.object({
     .default("false")
     .transform((v) => v === "true"),
   AUTH_SECRET: z.string().default(""),
+  // AI provider — OpenAI-compatible (OpenRouter, Ollama, DeepSeek, Groq, etc.)
+  AI_PROVIDER: z.string().default("openrouter"),
+  AI_MODEL: z.string().default("deepseek/deepseek-chat"),
+  AI_API_KEY: z.string().default(""),
+  AI_BASE_URL: z.string().default("https://openrouter.ai/api/v1"),
 });
 
 const parsed = envSchema.safeParse(process.env);

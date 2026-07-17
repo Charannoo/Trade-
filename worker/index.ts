@@ -9,7 +9,6 @@ dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 
 async function main() {
   const env = await import("../src/lib/env");
-  env.guardAnthropicKey();
 
   const { db } = await import("../src/lib/db");
   const { priceStreamRunner } = await import("./price-stream");

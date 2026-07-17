@@ -5,6 +5,7 @@ import { getAccount } from "@/lib/delta/rest";
 import { getBotSettings } from "@/lib/bot/config";
 import { placeOrder } from "@/lib/paper/service";
 import { notifyTrade, notifySignal } from "@/lib/telegram/notifier";
+import { env } from "@/lib/env";
 
 interface MarketSnapshot {
   symbol: string;
@@ -117,8 +118,12 @@ async function callAiForDecision(
   portfolio: PortfolioState,
   settings: Record<string, any>
 ): Promise<AgentDecision | null> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey || !apiKey.startsWith("sk-ant-")) {
+  const apiKey = env.AI_API_KEY;
+  const baseUrl = env.AI_BASE_URL.replace(/\/+$/, "");
+  const model = env.AI_MODEL;
+
+  if (!apiKey && !baseUrl.includes("localhost") && !baseUrl.includes("127.0.0.1")) {
+    console.log("[agent] No AI_API_KEY set — falling back to quant heuristic");
     return null;
   }
 
@@ -126,9 +131,8 @@ async function callAiForDecision(
     `${m.symbol}: $${m.price} RSI:${m.rsi ?? "?"} MACD:${m.macd ?? "?"} SMA50:${m.sma50 ?? "?"} SMA200:${m.sma200 ?? "?"} Regime:${m.regime ?? "?"} Pred:${m.prediction?.outlook ?? "?"}(${m.prediction?.confidence ?? "?"})`
   ).join("\n");
 
-  const prompt = `You are an aggressive crypto trading agent on Delta Exchange India (perpetual futures).
-
-## User's Goal
+  const systemPrompt = "You are a crypto trading agent for Delta Exchange India. Return ONLY valid JSON.";
+  const userPrompt = `## User's Goal
 "${goal}"
 
 ## Portfolio
@@ -148,11 +152,10 @@ ${marketData}
 ## Rules
 - Available pairs: BTCUSD, ETHUSD, SOLUSD, DOGEUSD, XRPUSD
 - Trade ONLY perpetual futures on Delta India
-- Use the 50x leverage to maximize small capital
+- Use the ${settings.leverage}x leverage to maximize small capital
 - Place bracket orders with stop-loss and take-profit
 - Consider RSI (<30 oversold buy, >70 overbought sell)
 - Consider MACD, SMA crossovers, predictions
-- Show your work and reasoning
 
 Return ONLY a JSON object:
 {
@@ -165,30 +168,36 @@ Return ONLY a JSON object:
 }`;
 
   try {
-    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+
+    const resp = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
+      headers,
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model,
         max_tokens: 1024,
         temperature: 0.3,
-        messages: [{ role: "user", content: prompt }],
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
       }),
       signal: AbortSignal.timeout(60_000),
     });
 
     if (!resp.ok) {
       const body = await resp.text();
-      console.error(`[agent] API ${resp.status}: ${body.slice(0, 200)}`);
+      console.error(`[agent] API ${resp.status}: ${body.slice(0, 300)}`);
       return null;
     }
 
     const data = await resp.json() as any;
-    const text = data.content?.[0]?.text ?? "";
+    const text = data.choices?.[0]?.message?.content ?? "";
+    if (!text) return null;
+
     const json = extractJson(text);
     if (!json) return null;
 
